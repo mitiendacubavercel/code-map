@@ -1,0 +1,253 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  role          UserRole  @default(DEVELOPER)
+  accounts      Account[]
+  sessions      Session[]
+  projects      ProjectMember[]
+  comments      Comment[]
+  activities    Activity[]
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+enum UserRole {
+  FRONTEND_DEV
+  BACKEND_DEV
+  FULL_STACK
+  ADMIN
+}
+
+model Project {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  isPublic    Boolean  @default(false)
+  members     ProjectMember[]
+  endpoints   Endpoint[]
+  activities  Activity[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model ProjectMember {
+  id        String   @id @default(cuid())
+  projectId String
+  userId    String
+  role      UserRole
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([projectId, userId])
+}
+
+model Endpoint {
+  id           String           @id @default(cuid())
+  projectId    String
+  path         String
+  method       HTTPMethod
+  name         String?
+  description  String?
+  frontendSpec EndpointSpec?
+  backendSpec  EndpointSpec?
+  status       EndpointStatus   @default(UNDEFINED)
+  conflicts    Conflict[]
+  comments     Comment[]
+  activities   Activity[]
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
+
+model EndpointSpec {
+  id                String              @id @default(cuid())
+  endpointId        String              @unique
+  requestBody       Json?
+  responseBody      Json?
+  parameters        Parameter[]
+  headers           Header[]
+  statusCodes       StatusCode[]
+  contentType       String?
+  authentication    String?
+  rateLimit         String?
+  notes             String?
+  endpoint          Endpoint            @relation(fields: [endpointId], references: [id], onDelete: Cascade)
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+}
+
+model Parameter {
+  id            String        @id @default(cuid())
+  endpointSpecId String
+  name          String
+  type          ParameterType
+  required      Boolean       @default(false)
+  description   String?
+  defaultValue  String?
+  validation    Json?
+  endpointSpec  EndpointSpec  @relation(fields: [endpointSpecId], references: [id], onDelete: Cascade)
+}
+
+model Header {
+  id            String       @id @default(cuid())
+  endpointSpecId String
+  name          String
+  value         String?
+  required      Boolean      @default(false)
+  description   String?
+  endpointSpec  EndpointSpec @relation(fields: [endpointSpecId], references: [id], onDelete: Cascade)
+}
+
+model StatusCode {
+  id            String       @id @default(cuid())
+  endpointSpecId String
+  code          Int
+  description   String?
+  responseBody  Json?
+  endpointSpec  EndpointSpec @relation(fields: [endpointSpecId], references: [id], onDelete: Cascade)
+}
+
+model Conflict {
+  id         String        @id @default(cuid())
+  endpointId String
+  type       ConflictType
+  field      String
+  frontendValue String?
+  backendValue  String?
+  severity   ConflictSeverity @default(MEDIUM)
+  resolved   Boolean       @default(false)
+  endpoint   Endpoint      @relation(fields: [endpointId], references: [id], onDelete: Cascade)
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+}
+
+model Comment {
+  id         String   @id @default(cuid())
+  endpointId String
+  userId     String
+  content    String
+  endpoint   Endpoint @relation(fields: [endpointId], references: [id], onDelete: Cascade)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model Activity {
+  id         String       @id @default(cuid())
+  projectId  String?
+  endpointId String?
+  userId     String
+  type       ActivityType
+  description String
+  metadata   Json?
+  project    Project?     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  endpoint   Endpoint?    @relation(fields: [endpointId], references: [id], onDelete: Cascade)
+  user       User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt  DateTime     @default(now())
+}
+
+enum HTTPMethod {
+  GET
+  POST
+  PUT
+  PATCH
+  DELETE
+  HEAD
+  OPTIONS
+}
+
+enum EndpointStatus {
+  SYNCED
+  CONFLICT
+  PENDING
+  UNDEFINED
+}
+
+enum ParameterType {
+  STRING
+  NUMBER
+  BOOLEAN
+  ARRAY
+  OBJECT
+  FILE
+}
+
+enum ConflictType {
+  METHOD_MISMATCH
+  PARAMETER_MISMATCH
+  RESPONSE_MISMATCH
+  HEADER_MISMATCH
+  STATUS_CODE_MISMATCH
+  AUTHENTICATION_MISMATCH
+}
+
+enum ConflictSeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum ActivityType {
+  ENDPOINT_CREATED
+  ENDPOINT_UPDATED
+  ENDPOINT_DELETED
+  CONFLICT_RESOLVED
+  COMMENT_ADDED
+  PROJECT_CREATED
+  PROJECT_UPDATED
+  MEMBER_ADDED
+  MEMBER_REMOVED
+}
