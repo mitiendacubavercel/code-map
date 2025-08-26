@@ -66,6 +66,7 @@ enum UserRole {
   BACKEND_DEV
   FULL_STACK
   ADMIN
+  DEVELOPER
 }
 
 model Project {
@@ -99,12 +100,11 @@ model Endpoint {
   method       HTTPMethod
   name         String?
   description  String?
-  frontendSpec EndpointSpec?
-  backendSpec  EndpointSpec?
   status       EndpointStatus   @default(UNDEFINED)
   conflicts    Conflict[]
   comments     Comment[]
   activities   Activity[]
+  specs        EndpointSpec[]
   createdAt    DateTime         @default(now())
   updatedAt    DateTime         @updatedAt
 
@@ -113,7 +113,8 @@ model Endpoint {
 
 model EndpointSpec {
   id                String              @id @default(cuid())
-  endpointId        String              @unique
+  endpointId        String
+  specType          String              // "frontend" or "backend"
   requestBody       Json?
   responseBody      Json?
   parameters        Parameter[]
