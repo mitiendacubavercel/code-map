@@ -61,10 +61,12 @@ jspm_packages/
 
 # Scripts de desarrollo
 scripts/
-*.js
 
 # Archivos de configuración local
 .env.example
 README.md
 SETUP.md
 VERCEL_DEPLOY.md
+
+# Archivos de configuración de build
+vercel-build.sh

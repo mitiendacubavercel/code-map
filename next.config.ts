@@ -11,14 +11,6 @@ const nextConfig: NextConfig = {
       },
     },
   },
-  webpack: (config, { isServer }) => {
-    if (isServer) {
-      // Configuración específica para el servidor
-      config.externals = config.externals || []
-      config.externals.push('@prisma/client')
-    }
-    return config
-  },
   // Configuración específica para Vercel
   output: 'standalone',
 }
