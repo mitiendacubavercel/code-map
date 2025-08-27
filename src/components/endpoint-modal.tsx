@@ -7,9 +7,8 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
-import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Plus, Trash2, Save, X } from 'lucide-react'
+import { Plus, Trash2, Save } from 'lucide-react'
 import { useAppStore, Endpoint, EndpointSpec, Parameter, Header, StatusCode } from '@/lib/store'
 
 interface EndpointModalProps {
@@ -124,7 +123,7 @@ export function EndpointModal({ open, onOpenChange }: EndpointModalProps) {
     }))
   }
 
-  const updateParameter = (specType: 'frontendSpec' | 'backendSpec', index: number, field: keyof Parameter, value: any) => {
+  const updateParameter = (specType: 'frontendSpec' | 'backendSpec', index: number, field: keyof Parameter, value: string | boolean) => {
     setFormData(prev => ({
       ...prev,
       [specType]: {
@@ -164,7 +163,7 @@ export function EndpointModal({ open, onOpenChange }: EndpointModalProps) {
     }))
   }
 
-  const updateHeader = (specType: 'frontendSpec' | 'backendSpec', index: number, field: keyof Header, value: any) => {
+  const updateHeader = (specType: 'frontendSpec' | 'backendSpec', index: number, field: keyof Header, value: string | boolean) => {
     setFormData(prev => ({
       ...prev,
       [specType]: {
@@ -203,7 +202,7 @@ export function EndpointModal({ open, onOpenChange }: EndpointModalProps) {
     }))
   }
 
-  const updateStatusCode = (specType: 'frontendSpec' | 'backendSpec', index: number, field: keyof StatusCode, value: any) => {
+  const updateStatusCode = (specType: 'frontendSpec' | 'backendSpec', index: number, field: keyof StatusCode, value: string | number) => {
     setFormData(prev => ({
       ...prev,
       [specType]: {
@@ -247,7 +246,7 @@ export function EndpointModal({ open, onOpenChange }: EndpointModalProps) {
             </div>
             <div>
               <label className="text-sm font-medium">Método HTTP</label>
-              <Select value={formData.method} onValueChange={(value) => setFormData(prev => ({ ...prev, method: value as any }))}>
+              <Select value={formData.method} onValueChange={(value) => setFormData(prev => ({ ...prev, method: value as 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'HEAD' | 'OPTIONS' }))}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -337,21 +336,20 @@ export function EndpointModal({ open, onOpenChange }: EndpointModalProps) {
 
 interface EndpointSpecFormProps {
   spec?: EndpointSpec
-  onUpdate: (spec: EndpointSpec) => void
+  onUpdate?: (spec: EndpointSpec) => void
   addParameter: () => void
-  updateParameter: (index: number, field: keyof Parameter, value: any) => void
+  updateParameter: (index: number, field: keyof Parameter, value: string | boolean) => void
   removeParameter: (index: number) => void
   addHeader: () => void
-  updateHeader: (index: number, field: keyof Header, value: any) => void
+  updateHeader: (index: number, field: keyof Header, value: string | boolean) => void
   removeHeader: (index: number) => void
   addStatusCode: () => void
-  updateStatusCode: (index: number, field: keyof StatusCode, value: any) => void
+  updateStatusCode: (index: number, field: keyof StatusCode, value: string | number) => void
   removeStatusCode: (index: number) => void
 }
 
 function EndpointSpecForm({
   spec,
-  onUpdate,
   addParameter,
   updateParameter,
   removeParameter,
@@ -388,7 +386,7 @@ function EndpointSpecForm({
                   value={param.name}
                   onChange={(e) => updateParameter(index, 'name', e.target.value)}
                 />
-                <Select value={param.type} onValueChange={(value) => updateParameter(index, 'type', value)}>
+                <Select value={param.type} onValueChange={(value) => updateParameter(index, 'type', value as 'STRING' | 'NUMBER' | 'BOOLEAN' | 'ARRAY' | 'OBJECT' | 'FILE')}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>

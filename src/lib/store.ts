@@ -15,8 +15,8 @@ export interface Endpoint {
 
 export interface EndpointSpec {
   id: string
-  requestBody?: any
-  responseBody?: any
+  requestBody?: unknown
+  responseBody?: unknown
   parameters: Parameter[]
   headers: Header[]
   statusCodes: StatusCode[]
@@ -33,7 +33,7 @@ export interface Parameter {
   required: boolean
   description?: string
   defaultValue?: string
-  validation?: any
+  validation?: unknown
 }
 
 export interface Header {
@@ -48,7 +48,7 @@ export interface StatusCode {
   id: string
   code: number
   description?: string
-  responseBody?: any
+  responseBody?: unknown
 }
 
 export interface Conflict {
