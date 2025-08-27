@@ -4,11 +4,12 @@ import { prisma } from '@/lib/prisma'
 // GET /api/endpoints/[id] - Obtener un endpoint específico
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const endpoint = await prisma.endpoint.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
         specs: {
           include: {
@@ -79,14 +80,15 @@ export async function GET(
 // PUT /api/endpoints/[id] - Actualizar un endpoint
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const body = await request.json()
     
     // Actualizar el endpoint principal
     const updatedEndpoint = await prisma.endpoint.update({
-      where: { id: params.id },
+      where: { id },
       data: {
         path: body.path,
         method: body.method,
@@ -100,7 +102,7 @@ export async function PUT(
     if (body.frontendSpec) {
       const existingFrontendSpec = await prisma.endpointSpec.findFirst({
         where: {
-          endpointId: params.id,
+          endpointId: id,
           specType: 'frontend',
         },
       })
@@ -120,7 +122,7 @@ export async function PUT(
       } else {
         await prisma.endpointSpec.create({
           data: {
-            endpointId: params.id,
+            endpointId: id,
             specType: 'frontend',
             requestBody: body.frontendSpec.requestBody,
             responseBody: body.frontendSpec.responseBody,
@@ -136,7 +138,7 @@ export async function PUT(
     if (body.backendSpec) {
       const existingBackendSpec = await prisma.endpointSpec.findFirst({
         where: {
-          endpointId: params.id,
+          endpointId: id,
           specType: 'backend',
         },
       })
@@ -156,7 +158,7 @@ export async function PUT(
       } else {
         await prisma.endpointSpec.create({
           data: {
-            endpointId: params.id,
+            endpointId: id,
             specType: 'backend',
             requestBody: body.backendSpec.requestBody,
             responseBody: body.backendSpec.responseBody,
@@ -182,11 +184,12 @@ export async function PUT(
 // DELETE /api/endpoints/[id] - Eliminar un endpoint
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     await prisma.endpoint.delete({
-      where: { id: params.id },
+      where: { id },
     })
 
     return NextResponse.json({ message: 'Endpoint deleted successfully' })
