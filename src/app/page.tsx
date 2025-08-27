@@ -17,7 +17,15 @@ export default function HomePage() {
     setEndpointModalOpen,
     getConflictsCount,
     getSyncedCount,
+    fetchEndpoints,
+    isLoading,
+    error,
   } = useAppStore()
+
+  // Cargar endpoints desde la API al montar el componente
+  React.useEffect(() => {
+    fetchEndpoints()
+  }, [fetchEndpoints])
 
   const filteredEndpoints = getFilteredEndpoints()
   const conflictsCount = getConflictsCount()
@@ -140,10 +148,24 @@ export default function HomePage() {
 
         {/* Endpoints Grid */}
         <div className="bg-white rounded-lg shadow">
-          <EndpointsGrid 
-            endpoints={filteredEndpoints}
-            className="p-6"
-          />
+          {isLoading ? (
+            <div className="p-6 text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+              <p className="mt-2 text-gray-600">Cargando endpoints...</p>
+            </div>
+          ) : error ? (
+            <div className="p-6 text-center">
+              <p className="text-red-600 mb-2">Error al cargar endpoints: {error}</p>
+              <Button onClick={() => fetchEndpoints()} variant="outline">
+                Reintentar
+              </Button>
+            </div>
+          ) : (
+            <EndpointsGrid 
+              endpoints={filteredEndpoints}
+              className="p-6"
+            />
+          )}
         </div>
       </main>
 

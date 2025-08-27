@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { devtools } from 'zustand/middleware'
+import { devtools, persist } from 'zustand/middleware'
 
 export interface Endpoint {
   id: string
@@ -85,6 +85,10 @@ interface AppState {
   isEndpointModalOpen: boolean
   isConflictModalOpen: boolean
   
+  // Estado de sincronización
+  isLoading: boolean
+  error: string | null
+  
   // Acciones
   setCurrentProject: (project: Project | null) => void
   setSelectedEndpoint: (endpoint: Endpoint | null) => void
@@ -92,6 +96,12 @@ interface AppState {
   addEndpoint: (endpoint: Endpoint) => void
   updateEndpoint: (id: string, updates: Partial<Endpoint>) => void
   deleteEndpoint: (id: string) => void
+  
+  // Acciones de sincronización con la API
+  fetchEndpoints: () => Promise<void>
+  createEndpoint: (endpoint: Omit<Endpoint, 'id'>) => Promise<void>
+  updateEndpointInDB: (id: string, updates: Partial<Endpoint>) => Promise<void>
+  deleteEndpointFromDB: (id: string) => Promise<void>
   
   setStatusFilter: (filters: string[]) => void
   setMethodFilter: (filters: string[]) => void
@@ -111,19 +121,22 @@ interface AppState {
 
 export const useAppStore = create<AppState>()(
   devtools(
-    (set, get) => ({
-      // Estado inicial
-      currentProject: null,
-      selectedEndpoint: null,
-      endpoints: [],
-      statusFilter: [],
-      methodFilter: [],
-      searchQuery: '',
-      isSidebarOpen: true,
-      isEndpointModalOpen: false,
-      isConflictModalOpen: false,
+    persist(
+      (set, get) => ({
+        // Estado inicial
+        currentProject: null,
+        selectedEndpoint: null,
+        endpoints: [],
+        statusFilter: [],
+        methodFilter: [],
+        searchQuery: '',
+        isSidebarOpen: true,
+        isEndpointModalOpen: false,
+        isConflictModalOpen: false,
+        isLoading: false,
+        error: null,
       
-      // Acciones
+      // Acciones básicas
       setCurrentProject: (project) => set({ currentProject: project }),
       setSelectedEndpoint: (endpoint) => set({ selectedEndpoint: endpoint }),
       setEndpoints: (endpoints) => set({ endpoints }),
@@ -144,6 +157,105 @@ export const useAppStore = create<AppState>()(
         set((state) => ({
           endpoints: state.endpoints.filter(endpoint => endpoint.id !== id)
         })),
+      
+      // Acciones de sincronización con la API
+      fetchEndpoints: async () => {
+        set({ isLoading: true, error: null })
+        try {
+          const response = await fetch('/api/endpoints')
+          if (!response.ok) {
+            throw new Error('Failed to fetch endpoints')
+          }
+          const endpoints = await response.json()
+          set({ endpoints, isLoading: false })
+        } catch (error) {
+          set({ 
+            error: error instanceof Error ? error.message : 'Unknown error', 
+            isLoading: false 
+          })
+        }
+      },
+      
+      createEndpoint: async (endpointData) => {
+        set({ isLoading: true, error: null })
+        try {
+          const response = await fetch('/api/endpoints', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(endpointData),
+          })
+          
+          if (!response.ok) {
+            throw new Error('Failed to create endpoint')
+          }
+          
+          const createdEndpoint = await response.json()
+          set((state) => ({
+            endpoints: [...state.endpoints, createdEndpoint],
+            isLoading: false
+          }))
+        } catch (error) {
+          set({ 
+            error: error instanceof Error ? error.message : 'Unknown error', 
+            isLoading: false 
+          })
+        }
+      },
+      
+      updateEndpointInDB: async (id, updates) => {
+        set({ isLoading: true, error: null })
+        try {
+          const response = await fetch(`/api/endpoints/${id}`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(updates),
+          })
+          
+          if (!response.ok) {
+            throw new Error('Failed to update endpoint')
+          }
+          
+          const updatedEndpoint = await response.json()
+          set((state) => ({
+            endpoints: state.endpoints.map(endpoint =>
+              endpoint.id === id ? { ...endpoint, ...updatedEndpoint } : endpoint
+            ),
+            isLoading: false
+          }))
+        } catch (error) {
+          set({ 
+            error: error instanceof Error ? error.message : 'Unknown error', 
+            isLoading: false 
+          })
+        }
+      },
+      
+      deleteEndpointFromDB: async (id) => {
+        set({ isLoading: true, error: null })
+        try {
+          const response = await fetch(`/api/endpoints/${id}`, {
+            method: 'DELETE',
+          })
+          
+          if (!response.ok) {
+            throw new Error('Failed to delete endpoint')
+          }
+          
+          set((state) => ({
+            endpoints: state.endpoints.filter(endpoint => endpoint.id !== id),
+            isLoading: false
+          }))
+        } catch (error) {
+          set({ 
+            error: error instanceof Error ? error.message : 'Unknown error', 
+            isLoading: false 
+          })
+        }
+      },
       
       setStatusFilter: (filters) => set({ statusFilter: filters }),
       setMethodFilter: (filters) => set({ methodFilter: filters }),
@@ -189,4 +301,4 @@ export const useAppStore = create<AppState>()(
       name: 'api-sync-store',
     }
   )
-)
+))

@@ -20,7 +20,7 @@ const HTTP_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS'
 const PARAMETER_TYPES = ['STRING', 'NUMBER', 'BOOLEAN', 'ARRAY', 'OBJECT', 'FILE']
 
 export function EndpointModal({ open, onOpenChange }: EndpointModalProps) {
-  const { selectedEndpoint, addEndpoint, updateEndpoint, setEndpointModalOpen } = useAppStore()
+  const { selectedEndpoint, createEndpoint, updateEndpointInDB, setEndpointModalOpen } = useAppStore()
   
   const [formData, setFormData] = useState<Partial<Endpoint>>({
     path: '',
@@ -96,9 +96,9 @@ export function EndpointModal({ open, onOpenChange }: EndpointModalProps) {
     }
 
     if (selectedEndpoint) {
-      updateEndpoint(selectedEndpoint.id, endpointData)
+      updateEndpointInDB(selectedEndpoint.id, endpointData)
     } else {
-      addEndpoint(endpointData)
+      createEndpoint(endpointData)
     }
 
     setEndpointModalOpen(false)
