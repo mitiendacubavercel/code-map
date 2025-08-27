@@ -3,8 +3,6 @@
 
 generator client {
   provider = "prisma-client-js"
-  // Configuración para Vercel
-  output   = "./generated/client"
 }
 
 datasource db {

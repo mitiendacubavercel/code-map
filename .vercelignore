@@ -3,7 +3,7 @@ node_modules
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-.npm-cache
+
 # Build outputs
 .next
 out
@@ -59,7 +59,12 @@ jspm_packages/
 # dotenv environment variables file
 .env
 
-# Prisma
-prisma/migrations
-prisma/seed.js
+# Scripts de desarrollo
 scripts/
+*.js
+
+# Archivos de configuración local
+.env.example
+README.md
+SETUP.md
+VERCEL_DEPLOY.md
