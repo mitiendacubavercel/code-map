@@ -1,6 +1,6 @@
 'use client'
 
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -17,6 +17,8 @@ const STATUS_OPTIONS = [
 ]
 
 export function FiltersBar() {
+  const [isClient, setIsClient] = useState(false)
+
   const {
     searchQuery,
     setSearchQuery,
@@ -28,6 +30,10 @@ export function FiltersBar() {
     getConflictsCount,
     getSyncedCount,
   } = useAppStore()
+
+  useEffect(() => {
+    setIsClient(true)
+  }, [])
 
   const filteredEndpoints = getFilteredEndpoints()
   const conflictsCount = getConflictsCount()
@@ -70,7 +76,7 @@ export function FiltersBar() {
             className="pl-10"
           />
         </div>
-        
+
         <div className="flex gap-2">
           <Select value="" onValueChange={handleStatusFilterChange}>
             <SelectTrigger className="w-[180px]">
@@ -129,7 +135,7 @@ export function FiltersBar() {
               </Badge>
             )
           })}
-          
+
           {methodFilter.map((method) => (
             <Badge
               key={method}
@@ -144,24 +150,28 @@ export function FiltersBar() {
         </div>
       )}
 
-      {/* Estadísticas */}
+      {/* Estadísticas - Protegidas contra errores de hidratación */}
       <div className="flex items-center justify-between text-sm text-gray-600">
         <div className="flex items-center gap-4">
           <span>
-            {filteredEndpoints.length} endpoint{filteredEndpoints.length !== 1 ? 's' : ''} mostrado{filteredEndpoints.length !== 1 ? 's' : ''}
+            {isClient ? (
+              `${filteredEndpoints.length} endpoint${filteredEndpoints.length !== 1 ? 's' : ''} mostrado${filteredEndpoints.length !== 1 ? 's' : ''}`
+            ) : (
+              'Cargando endpoints...'
+            )}
           </span>
-          {conflictsCount > 0 && (
+          {isClient && conflictsCount > 0 && (
             <span className="text-red-600">
               {conflictsCount} conflicto{conflictsCount !== 1 ? 's' : ''}
             </span>
           )}
-          {syncedCount > 0 && (
+          {isClient && syncedCount > 0 && (
             <span className="text-green-600">
               {syncedCount} sincronizado{syncedCount !== 1 ? 's' : ''}
             </span>
           )}
         </div>
-        
+
         {hasActiveFilters && (
           <span className="text-gray-500">
             Filtros aplicados

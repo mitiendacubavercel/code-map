@@ -21,7 +21,7 @@ const PARAMETER_TYPES = ['STRING', 'NUMBER', 'BOOLEAN', 'ARRAY', 'OBJECT', 'FILE
 
 export function EndpointModal({ open, onOpenChange }: EndpointModalProps) {
   const { selectedEndpoint, createEndpoint, updateEndpointInDB, setEndpointModalOpen } = useAppStore()
-  
+
   const [formData, setFormData] = useState<Partial<Endpoint>>({
     path: '',
     method: 'GET',
@@ -44,65 +44,134 @@ export function EndpointModal({ open, onOpenChange }: EndpointModalProps) {
   const [activeTab, setActiveTab] = useState('frontend')
 
   useEffect(() => {
-    if (selectedEndpoint) {
-      setFormData({
-        ...selectedEndpoint,
-        frontendSpec: selectedEndpoint.frontendSpec || {
-          id: '',
-          parameters: [],
-          headers: [],
-          statusCodes: [],
-        },
-        backendSpec: selectedEndpoint.backendSpec || {
-          id: '',
-          parameters: [],
-          headers: [],
-          statusCodes: [],
-        },
-      })
-    } else {
-      setFormData({
-        path: '',
-        method: 'GET',
-        name: '',
-        description: '',
-        frontendSpec: {
-          id: '',
-          parameters: [],
-          headers: [],
-          statusCodes: [],
-        },
-        backendSpec: {
-          id: '',
-          parameters: [],
-          headers: [],
-          statusCodes: [],
-        },
-      })
+    // ✅ Reaccionar cuando se abre/cierra el modal
+    if (open) {
+      if (selectedEndpoint) {
+        // Modo edición
+        setFormData({
+          ...selectedEndpoint,
+          frontendSpec: selectedEndpoint.frontendSpec || {
+            id: '',
+            parameters: [],
+            headers: [],
+            statusCodes: [],
+          },
+          backendSpec: selectedEndpoint.backendSpec || {
+            id: '',
+            parameters: [],
+            headers: [],
+            statusCodes: [],
+          },
+        })
+      } else {
+        // Modo creación - formulario limpio
+        setFormData({
+          path: '',
+          method: 'GET',
+          name: '',
+          description: '',
+          frontendSpec: {
+            id: '',
+            parameters: [],
+            headers: [],
+            statusCodes: [],
+          },
+          backendSpec: {
+            id: '',
+            parameters: [],
+            headers: [],
+            statusCodes: [],
+          },
+        })
+      }
     }
-  }, [selectedEndpoint])
+  }, [open, selectedEndpoint]) // ✅ Agregar 'open' como dependencia
 
-  const handleSave = () => {
-    const endpointData: Endpoint = {
-      id: selectedEndpoint?.id || `endpoint-${Date.now()}`,
-      path: formData.path || '',
-      method: formData.method || 'GET',
-      name: formData.name,
-      description: formData.description,
-      status: 'UNDEFINED', // Se calculará automáticamente
-      frontendSpec: formData.frontendSpec,
-      backendSpec: formData.backendSpec,
-      conflicts: [],
+
+
+  const handleSave = async () => {
+    try {
+      // Limpiar y preparar los datos para la API
+      const cleanSpec = (spec: any, specId?: string) => {
+        if (!spec) return undefined;
+
+        return {
+          // ✅ Incluir el ID (usar el existente o generar uno nuevo)
+          id: specId || spec.id || `spec-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          requestBody: spec.requestBody || null,
+          responseBody: spec.responseBody || null,
+          contentType: spec.contentType || null,
+          authentication: spec.authentication || null,
+          rateLimit: spec.rateLimit || null,
+          notes: spec.notes || null,
+          parameters: spec.parameters?.map((param: any) => ({
+            id: param.id || `param-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            name: param.name,
+            type: param.type || 'STRING',
+            required: param.required || false,
+            description: param.description || null,
+            defaultValue: param.defaultValue || null,
+            validation: param.validation || null,
+          })) || [],
+          headers: spec.headers?.map((header: any) => ({
+            id: header.id || `header-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            name: header.name,
+            value: header.value || null,
+            required: header.required || false,
+            description: header.description || null,
+          })) || [],
+          statusCodes: spec.statusCodes?.map((status: any) => ({
+            id: status.id || `status-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            code: status.code,
+            description: status.description || null,
+            responseBody: status.responseBody || null,
+          })) || [],
+        };
+      };
+
+      const apiData = {
+        path: formData.path || '',
+        method: formData.method || 'GET',
+        name: formData.name || '',
+        description: formData.description || '',
+        status: 'UNDEFINED' as const,
+        // ✅ Pasar los IDs existentes si estamos editando
+        frontendSpec: formData.frontendSpec && (
+          formData.frontendSpec.parameters?.length > 0 ||
+          formData.frontendSpec.headers?.length > 0 ||
+          formData.frontendSpec.statusCodes?.length > 0 ||
+          formData.frontendSpec.requestBody ||
+          formData.frontendSpec.responseBody
+        ) ? cleanSpec(formData.frontendSpec, formData.frontendSpec.id) : undefined,
+
+        backendSpec: formData.backendSpec && (
+          formData.backendSpec.parameters?.length > 0 ||
+          formData.backendSpec.headers?.length > 0 ||
+          formData.backendSpec.statusCodes?.length > 0 ||
+          formData.backendSpec.requestBody ||
+          formData.backendSpec.responseBody
+        ) ? cleanSpec(formData.backendSpec, formData.backendSpec.id) : undefined,
+      };
+
+      console.log('Datos a enviar:', JSON.stringify(apiData, null, 2));
+
+      if (selectedEndpoint) {
+        // Actualizar endpoint existente
+        await updateEndpointInDB(selectedEndpoint.id, apiData);
+      } else {
+        // Crear nuevo endpoint
+        console.log('Llamando createEndpoint con:', apiData)
+        const result = await createEndpoint(apiData)
+        console.log('Resultado de createEndpoint:', result)
+
+      }
+
+      setEndpointModalOpen(false);
+    } catch (error) {
+      console.error('Error al guardar endpoint:', error);
+      // Aquí podrías mostrar un toast de error
     }
-
-    if (selectedEndpoint) {
-      updateEndpointInDB(selectedEndpoint.id, endpointData)
-    } else {
-      createEndpoint(endpointData)
-    }
-
-    setEndpointModalOpen(false)
-  }
+  };
 
   const addParameter = (specType: 'frontendSpec' | 'backendSpec') => {
     const newParameter: Parameter = {

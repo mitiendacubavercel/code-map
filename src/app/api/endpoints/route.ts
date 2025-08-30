@@ -67,10 +67,10 @@ export async function GET() {
   }
 }
 
-// POST /api/endpoints - Crear un nuevo endpoint
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
+    console.log('Datos recibidos:', JSON.stringify(body, null, 2))
 
     let projectId = body.projectId;
 
@@ -80,7 +80,6 @@ export async function POST(request: NextRequest) {
         where: { name: 'Proyecto Por Defecto' }
       });
 
-      // Si no existe, crearlo
       if (!defaultProject) {
         console.log('Creando proyecto por defecto...');
         defaultProject = await prisma.project.create({
@@ -96,7 +95,7 @@ export async function POST(request: NextRequest) {
       projectId = defaultProject.id;
     }
 
-    // Verificar que el proyecto existe (validación adicional)
+    // Verificar que el proyecto existe
     const project = await prisma.project.findUnique({
       where: { id: projectId }
     });
@@ -118,42 +117,96 @@ export async function POST(request: NextRequest) {
         name: body.name,
         description: body.description,
         status: body.status || 'UNDEFINED',
-        projectId: projectId, // Usar el projectId validado
+        projectId: projectId,
       },
     })
 
-    // Crear las especificaciones frontend y backend si existen
-    if (body.frontendSpec) {
-      await prisma.endpointSpec.create({
+    console.log('Endpoint creado:', endpoint.id);
+
+    // Función helper para crear especificaciones
+    const createSpec = async (specData: any, specType: 'frontend' | 'backend') => {
+      if (!specData) return null;
+
+      console.log(`Creando spec ${specType}:`, JSON.stringify(specData, null, 2));
+
+      // Crear la especificación principal
+      const spec = await prisma.endpointSpec.create({
         data: {
           endpointId: endpoint.id,
-          specType: 'frontend',
-          requestBody: body.frontendSpec.requestBody,
-          responseBody: body.frontendSpec.responseBody,
-          contentType: body.frontendSpec.contentType,
-          authentication: body.frontendSpec.authentication,
-          rateLimit: body.frontendSpec.rateLimit,
-          notes: body.frontendSpec.notes,
+          specType: specType,
+          requestBody: specData.requestBody || null,
+          responseBody: specData.responseBody || null,
+          contentType: specData.contentType || null,
+          authentication: specData.authentication || null,
+          rateLimit: specData.rateLimit || null,
+          notes: specData.notes || null,
         },
-      })
+      });
+
+      console.log(`Spec ${specType} creada:`, spec.id);
+
+      // Crear parameters si existen
+      if (specData.parameters && Array.isArray(specData.parameters)) {
+        for (const param of specData.parameters) {
+          await prisma.parameter.create({
+            data: {
+              endpointSpecId: spec.id,
+              name: param.name,
+              type: param.type || 'STRING',
+              required: param.required || false,
+              description: param.description || null,
+              defaultValue: param.defaultValue || null,
+              validation: param.validation || null,
+            },
+          });
+        }
+        console.log(`${specData.parameters.length} parámetros creados para ${specType}`);
+      }
+
+      // Crear headers si existen
+      if (specData.headers && Array.isArray(specData.headers)) {
+        for (const header of specData.headers) {
+          await prisma.header.create({
+            data: {
+              endpointSpecId: spec.id,
+              name: header.name,
+              value: header.value || null,
+              required: header.required || false,
+              description: header.description || null,
+            },
+          });
+        }
+        console.log(`${specData.headers.length} headers creados para ${specType}`);
+      }
+
+      // Crear status codes si existen
+      if (specData.statusCodes && Array.isArray(specData.statusCodes)) {
+        for (const statusCode of specData.statusCodes) {
+          await prisma.statusCode.create({
+            data: {
+              endpointSpecId: spec.id,
+              code: statusCode.code,
+              description: statusCode.description || null,
+              responseBody: statusCode.responseBody || null,
+            },
+          });
+        }
+        console.log(`${specData.statusCodes.length} status codes creados para ${specType}`);
+      }
+
+      return spec;
+    };
+
+    // Crear las especificaciones
+    if (body.frontendSpec) {
+      await createSpec(body.frontendSpec, 'frontend');
     }
 
     if (body.backendSpec) {
-      await prisma.endpointSpec.create({
-        data: {
-          endpointId: endpoint.id,
-          specType: 'backend',
-          requestBody: body.backendSpec.requestBody,
-          responseBody: body.backendSpec.responseBody,
-          contentType: body.backendSpec.contentType,
-          authentication: body.backendSpec.authentication,
-          rateLimit: body.backendSpec.rateLimit,
-          notes: body.backendSpec.notes,
-        },
-      })
+      await createSpec(body.backendSpec, 'backend');
     }
 
-    // Obtener el endpoint creado con todas sus relaciones
+    // ✅ Obtener el endpoint creado con todas sus relaciones
     const createdEndpoint = await prisma.endpoint.findUnique({
       where: { id: endpoint.id },
       include: {
@@ -166,9 +219,60 @@ export async function POST(request: NextRequest) {
         },
         conflicts: true,
       },
-    })
+    });
 
-    return NextResponse.json(createdEndpoint, { status: 201 })
+    // ✅ VALIDACIÓN AGREGADA: Verificar que el endpoint fue encontrado
+    if (!createdEndpoint) {
+      console.error('Error: No se pudo recuperar el endpoint creado');
+      return NextResponse.json(
+        { error: 'Error interno: No se pudo recuperar el endpoint creado' },
+        { status: 500 }
+      );
+    }
+
+    // ✅ Transformar los datos igual que en el GET para consistencia
+    const frontendSpec = createdEndpoint.specs.find(spec => spec.specType === 'frontend')
+    const backendSpec = createdEndpoint.specs.find(spec => spec.specType === 'backend')
+
+    const transformedEndpoint = {
+      id: createdEndpoint.id,
+      projectId: createdEndpoint.projectId,
+      path: createdEndpoint.path,
+      method: createdEndpoint.method,
+      name: createdEndpoint.name,
+      description: createdEndpoint.description,
+      status: createdEndpoint.status,
+      frontendSpec: frontendSpec ? {
+        id: frontendSpec.id,
+        requestBody: frontendSpec.requestBody,
+        responseBody: frontendSpec.responseBody,
+        parameters: frontendSpec.parameters,
+        headers: frontendSpec.headers,
+        statusCodes: frontendSpec.statusCodes,
+        contentType: frontendSpec.contentType,
+        authentication: frontendSpec.authentication,
+        rateLimit: frontendSpec.rateLimit,
+        notes: frontendSpec.notes,
+      } : undefined,
+      backendSpec: backendSpec ? {
+        id: backendSpec.id,
+        requestBody: backendSpec.requestBody,
+        responseBody: backendSpec.responseBody,
+        parameters: backendSpec.parameters,
+        headers: backendSpec.headers,
+        statusCodes: backendSpec.statusCodes,
+        contentType: backendSpec.contentType,
+        authentication: backendSpec.authentication,
+        rateLimit: backendSpec.rateLimit,
+        notes: backendSpec.notes,
+      } : undefined,
+      conflicts: createdEndpoint.conflicts,
+    }
+
+    console.log('Endpoint transformado para respuesta:', JSON.stringify(transformedEndpoint, null, 2));
+
+    return NextResponse.json(transformedEndpoint, { status: 201 })
+
   } catch (error) {
     console.error('Error creating endpoint:', error)
     return NextResponse.json(
@@ -176,7 +280,6 @@ export async function POST(request: NextRequest) {
         error: 'Failed to create endpoint',
         details: error instanceof Error ? error.message : 'Error desconocido'
       },
-
       { status: 500 }
     )
   }
