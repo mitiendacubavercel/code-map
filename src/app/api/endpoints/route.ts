@@ -71,7 +71,45 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    
+
+    let projectId = body.projectId;
+
+    // Si no se proporciona projectId, crear o buscar proyecto por defecto
+    if (!projectId) {
+      let defaultProject = await prisma.project.findFirst({
+        where: { name: 'Proyecto Por Defecto' }
+      });
+
+      // Si no existe, crearlo
+      if (!defaultProject) {
+        console.log('Creando proyecto por defecto...');
+        defaultProject = await prisma.project.create({
+          data: {
+            name: 'Proyecto Por Defecto',
+            description: 'Proyecto por defecto para endpoints sin proyecto específico',
+            isPublic: true,
+          }
+        });
+        console.log('Proyecto por defecto creado:', defaultProject.id);
+      }
+
+      projectId = defaultProject.id;
+    }
+
+    // Verificar que el proyecto existe (validación adicional)
+    const project = await prisma.project.findUnique({
+      where: { id: projectId }
+    });
+
+    if (!project) {
+      return NextResponse.json(
+        { error: `El proyecto con ID ${projectId} no existe` },
+        { status: 400 }
+      );
+    }
+
+    console.log('Creando endpoint para proyecto:', projectId);
+
     // Crear el endpoint principal
     const endpoint = await prisma.endpoint.create({
       data: {
@@ -80,7 +118,7 @@ export async function POST(request: NextRequest) {
         name: body.name,
         description: body.description,
         status: body.status || 'UNDEFINED',
-        projectId: body.projectId || 'default-project', // Por ahora usamos un proyecto por defecto
+        projectId: projectId, // Usar el projectId validado
       },
     })
 
@@ -134,8 +172,13 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Error creating endpoint:', error)
     return NextResponse.json(
-      { error: 'Failed to create endpoint' },
+      {
+        error: 'Failed to create endpoint',
+        details: error instanceof Error ? error.message : 'Error desconocido'
+      },
+
       { status: 500 }
     )
   }
 }
+
